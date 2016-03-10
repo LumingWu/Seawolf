@@ -81,6 +81,7 @@ class Multiply(Node):
     """
 
     def __init__(self, left, right):
+        print("Operation multiply ", left.evaluate(), right.evaluate());
         self.left = left
         self.right = right
 
@@ -103,6 +104,7 @@ class Divide(Node):
     """
 
     def __init__(self, left, right):
+        print("Operation divide ", left.evaluate(), right.evaluate());
         self.left = left
         self.right = right
 
@@ -110,10 +112,10 @@ class Divide(Node):
         left = self.left.evaluate()
         right = self.right.evaluate()
         if isinstance(left, int):
-            if not isinstance(right, int):
+            if not isinstance(right, int) or right is 0:
                 raise SemanticError()
         elif isinstance(left, float):
-            if not isinstance(right, float):
+            if not isinstance(right, float) or right is 0.0:
                 raise SemanticError()
         else:
             raise SemanticError()
@@ -148,6 +150,7 @@ class Subtract(Node):
     """
 
     def __init__(self, left, right):
+        print("Operation subtract ", left.evaluate(), right.evaluate());
         self.left = left
         self.right = right
 
@@ -161,7 +164,7 @@ class Subtract(Node):
             if not isinstance(right, float):
                 raise SemanticError()
         else:
-            raise SemanticError()
+            raise SemantcError()
         return left - right
 
 class Not(Node):
@@ -170,6 +173,7 @@ class Not(Node):
     """
 
     def __init__(self, left):
+        print("Operation not ", left.evaluate());
         self.left = left
 
     def evaluate(self):
@@ -186,6 +190,7 @@ class Or(Node):
     """
 
     def __init__(self, left, right):
+        print("Operation or ", left.evaluate(), right.evaluate());
         self.left = left
         self.right = right
 
@@ -204,6 +209,7 @@ class And(Node):
     """
 
     def __init__(self, left, right):
+        print("Operation and ", left.evaluate(), right.evaluate());
         self.left = left
         self.right = right
 
@@ -222,49 +228,39 @@ class Parser(tpg.Parser):
     """
     token real "\d*\.\d+|\d+\.\d*" RealLiteral;
     token int "\d+" IntLiteral;
-    token string "\\"[^\\"]*\\"" StringLiteral;
     token boolean "true|false" BooleanLiteral;
+    token string "\\"[^\\"]*\\"" StringLiteral;
     separator space "\s+";
     
     START/a -> Expression/a;
 
     Expression/a -> Number/a | Boolean/a | string/a;
+    
+    Number/a -> Addsub/a;
 
-    Number/a -> Term/a("\+" Term/b $ a = Add(a, b)$
-    | "-" Term/b $ a = Subtract(a, b)$)*;
+    Addsub/a -> Muldiv/a("\+" Muldiv/b $ a = Add(a, b)$
+    | "-" Muldiv/b $ a = Subtract(a, b)$)*;
     
-    Term/a -> Fact/a("\*" Fact/b $ a = Multiply(a, b)$
-    | "/" Fact/b $ a = Divide(a, b) $)*;
+    Muldiv/a -> NumberFact/a("\*" NumberFact/b $ a = Multiply(a, b)$
+    | "/" NumberFact/b $ a = Divide(a, b) $)*;
     
-    Fact/a -> NumLiteral/a | "\(" Number/a "\)"; 
+    NumberFact/a -> NumLiteral/a | "\(" Number/a "\)"; 
 
     NumLiteral/a -> int/a | real/a;
 
     Boolean/a -> BooleanAnd/a;
-
-    BooleanAnd/a -> BooleanOr/a ("AND" BooleanOr/b $ a = And(a, b)$)*;
-
-    BooleanOr/a -> BooleanBoth/a ("OR" BooleanBoth/b $ a = Or(a, b)$)*;
-
-    BooleanBoth/a -> BooleanNot/a | BooleanLiteral/a; 
-
-    BooleanNot/a -> "NOT" (BooleanNot/a $ a = Not(a)$
-    | BooleanLiteral/a $ a = Not(a)$);
     
-    BooleanLiteral/a -> int/a | boolean/a;
+    BooleanAnd/a -> BooleanOr/a ("AND" BooleanOr/b $ a = And(a, b)$)*;
+    
+    BooleanOr/a -> int/a ("OR" int/b $ a = Or(a, b)$)*;
+
+    BooleanNot/a -> BooleanLiteral/a | "NOT" BooleanLiteral/a $ a = Not(a)$;
+
+    BooleanLiteral/a -> boolean/a | int/a;
     """
 
 # Make an instance of the parser. This acts like a function.
 parse = Parser()
-"""
-    Boolean/a -> BooleanOr/a(("||"|"OR") BooleanOR/b $ a = Or(a, b)$)*;
-
-    BooleanOr/a -> BooleanAnd/a(("&&"|"AND") BooleanAnd/b $ a = And(a, b)$)*;
-
-    BooleanAnd/a -> BooleanNot;
-
-    BooleanNot/a -> BooleanLiteral/a | "\(" Boolean/a "\)";
-"""
 # This is the driver code, that reads in lines, deals with errors, and
 # prints the output if no error occurs.
 
