@@ -252,7 +252,7 @@ class Parser(tpg.Parser):
     
     BooleanAnd/a -> BooleanOr/a ("AND" BooleanOr/b $ a = And(a, b)$)*;
     
-    BooleanOr/a -> int/a ("OR" int/b $ a = Or(a, b)$)*;
+    BooleanOr/a -> BooleanNot/a ("OR" BooleanNot/b $ a = Or(a, b)$)*;
 
     BooleanNot/a -> BooleanLiteral/a | "NOT" BooleanLiteral/a $ a = Not(a)$;
 
