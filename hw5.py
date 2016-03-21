@@ -56,17 +56,56 @@ class BooleanLiteral(Node):
 class StringLiteral(Node):
 
     def __init__(self, value):
-        print("String construction:", value);
+        print("String construction:", value)
         temp = str(value)
         self.value = temp[1:len(temp)-1]
 
     def evaluate(self):
         return self.value
 
+class ListLiteral(Node):
+
+    def __init__(self):
+        print("List construction: ")
+
+    def evaluate(self):
+        return []
+
+class Index(Node):
+
+    def __init__(self, left, right):
+        print("Operation index ", left.evaluate(), right.evaluate())
+        self.left = left
+        self.right = right
+
+    def evaluate(self):
+        left = self.left.evaluate()
+        right = self.right.evaluate()
+        if not isinstance(left, str) and not isinstance(left, list):
+            raise SemanticError
+        if not isinstance(right, int):
+            raise SemanticError
+        return left[right]
+
+class ListAppend(Node):
+
+    def __init__(self, left, right):
+        print("Operation ListAppend: ", left.evaluate(), right.evaluate())
+        self.left = left
+        self.right = right
+
+    def evaluate(self):
+        left = self.left.evaluate()
+        right = self.right.evaluate()
+        if not isinstance(left, list):
+            raise SemanticError
+        left.append(right)
+        return left
+
 class Equal(Node):
 
     def __init__(self, left, right):
-        print("Operation == ", left.evaluate(), right.evaluate());
+        print("Operation == ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -80,7 +119,7 @@ class Equal(Node):
 class NotEqual(Node):
 
     def __init__(self, left, right):
-        print("Operation != ", left.evaluate(), right.evaluate());
+        print("Operation != ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -94,7 +133,7 @@ class NotEqual(Node):
 class Less(Node):
 
     def __init__(self, left, right):
-        print("Operation < ", left.evaluate(), right.evaluate());
+        print("Operation < ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -108,7 +147,7 @@ class Less(Node):
 class LessEqual(Node):
 
     def __init__(self, left, right):
-        print("Operation <= ", left.evaluate(), right.evaluate());
+        print("Operation <= ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -122,7 +161,7 @@ class LessEqual(Node):
 class Larger(Node):
 
     def __init__(self, left, right):
-        print("Operation > ", left.evaluate(), right.evaluate());
+        print("Operation > ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -136,7 +175,7 @@ class Larger(Node):
 class LargerEqual(Node):
 
     def __init__(self, left, right):
-        print("Operation >= ", left.evaluate(), right.evaluate());
+        print("Operation >= ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -150,7 +189,7 @@ class LargerEqual(Node):
 class And(Node):
     
     def __init__(self, left, right):
-        print("Operation and ", left.evaluate(), right.evaluate());
+        print("Operation and ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -166,7 +205,7 @@ class And(Node):
 class Or(Node):
 
     def __init__(self, left, right):
-        print("Operation or ", left.evaluate(), right.evaluate());
+        print("Operation or ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -182,7 +221,7 @@ class Or(Node):
 class Not(Node):
 
     def __init__(self, left):
-        print("Operation not ", left.evaluate());
+        print("Operation not ", left.evaluate())
         self.left = left
 
     def evaluate(self):
@@ -216,7 +255,7 @@ class Add(Node):
 class Subtract(Node):
 
     def __init__(self, left, right):
-        print("Operation subtract ", left.evaluate(), right.evaluate());
+        print("Operation subtract ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -236,7 +275,7 @@ class Subtract(Node):
 class Multiply(Node):
 
     def __init__(self, left, right):
-        print("Operation multiply ", left.evaluate(), right.evaluate());
+        print("Operation multiply ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -256,7 +295,7 @@ class Multiply(Node):
 class Divide(Node):
 
     def __init__(self, left, right):
-        print("Operation divide ", left.evaluate(), right.evaluate());
+        print("Operation divide ", left.evaluate(), right.evaluate())
         self.left = left
         self.right = right
 
@@ -321,7 +360,16 @@ class Parser(tpg.Parser):
     
     START/a -> Expression/a;
 
-    Expression/a -> Compare/a;
+    Expression/a -> Index/a;
+
+    Index/a -> (IndexLiteral/a "\\[" Number/b "\\]" $ a = Index(a, b)$)
+    | IndexLiteral/a;
+
+    IndexLiteral/a -> Compare/a
+    | List/a;
+
+    List/a -> "\\["/a $a=ListLiteral()$ Compare/b $a=ListAppend(a, b)$("," Compare/b $a=ListAppend(a,b)$)* "\\]"
+    | "\\[\\]"/a $a=ListLiteral()$;
 
     Compare/a -> Equals/a;
 
@@ -333,9 +381,11 @@ class Parser(tpg.Parser):
     |">=" CompareFact/b $ a = LargerEqual(a, b)$
     | ">" CompareFact/b $ a = Larger(a, b)$)*;
 
-    CompareFact/a -> CompareLiteral/a | "\(" Compare/a "\)";
+    CompareFact/a -> CompareLiteral/a
+    | "\(" Compare/a "\)";
 
-    CompareLiteral/a -> Boolean/a | string/a;
+    CompareLiteral/a -> Boolean/a
+    | string/a;
 
     Boolean/a -> BooleanAnd/a;
     
@@ -343,11 +393,14 @@ class Parser(tpg.Parser):
     
     BooleanOr/a -> BooleanNot/a ("OR" BooleanNot/b $ a = Or(a, b)$)*;
     
-    BooleanNot/a -> BooleanFact/a | "NOT" BooleanFact/a $ a = Not(a)$;
+    BooleanNot/a -> BooleanFact/a
+    | "NOT" BooleanFact/a $ a = Not(a)$;
 
-    BooleanFact/a -> BooleanLiteral/a | "\(" Boolean/a "\)";
+    BooleanFact/a -> BooleanLiteral/a
+    | "\(" Boolean/a "\)";
 
-    BooleanLiteral/a -> boolean/a | Number/a;
+    BooleanLiteral/a -> boolean/a
+    | Number/a;
     
     Number/a -> Addsub/a;
 
@@ -360,9 +413,11 @@ class Parser(tpg.Parser):
 
     Pow/a -> NumberFact/a ("\*\*" NumberFact/b $ a = Power(a, b)$)*;
     
-    NumberFact/a -> NumLiteral/a | "\(" Number/a "\)"; 
+    NumberFact/a -> NumLiteral/a
+    | "\(" Number/a "\)"; 
 
-    NumLiteral/a -> int/a | real/a;
+    NumLiteral/a -> int/a
+    | real/a;
     """
 
 # Make an instance of the parser. This acts like a function.
