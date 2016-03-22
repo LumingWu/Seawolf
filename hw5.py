@@ -362,13 +362,12 @@ class Parser(tpg.Parser):
 
     Expression/a -> Index/a;
 
-    Index/a -> (IndexLiteral/a "\\[" Number/b "\\]" $ a = Index(a, b)$)
-    | IndexLiteral/a;
+    Index/a -> IndexLiteral/a ("\\[" Number/b "\\]" $ a = Index(a, b)$)*;
 
     IndexLiteral/a -> Compare/a
     | List/a;
 
-    List/a -> "\\["/a $a=ListLiteral()$ Compare/b $a=ListAppend(a, b)$("," Compare/b $a=ListAppend(a,b)$)* "\\]"
+    List/a -> "\\["/a $a=ListLiteral()$ Expression/b $a=ListAppend(a, b)$("," Expression/b $a=ListAppend(a,b)$)* "\\]"
     | "\\[\\]"/a $a=ListLiteral()$;
 
     Compare/a -> Equals/a;
