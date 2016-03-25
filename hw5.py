@@ -81,9 +81,7 @@ class Index(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if not isinstance(left, str) and not isinstance(left, list):
-            raise SemanticError
-        if not isinstance(right, int):
+        if not ((isinstance(left, str) or isinstance(left, list)) and isinstance(right, int)):
             raise SemanticError
         return left[right]
 
@@ -196,7 +194,7 @@ class And(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if not isinstance(left, int) or not isinstance(right, int):
+        if not (isinstance(left, int) and isinstance(right, int)):
             raise SemanticError()
         if left and right:
             return 1
@@ -212,7 +210,7 @@ class Or(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if not isinstance(left, int) or not isinstance(right, int):
+        if not (isinstance(left, int) and isinstance(right, int)):
             raise SemanticError()
         if left or right:
             return 1
@@ -242,13 +240,7 @@ class Add(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if isinstance(left, int):
-            if not isinstance(right, int):
-                raise SemanticError()
-        elif isinstance(left, float):
-            if not isinstance(right, float):
-                raise SemanticError()
-        else:
+        if ((isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float))) or (isinstance(left, str) and isinstance(right, str)):
             raise SemanticError()
         return left + right
 
@@ -262,14 +254,8 @@ class Subtract(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if isinstance(left, int):
-            if not isinstance(right, int):
-                raise SemanticError()
-        elif isinstance(left, float):
-            if not isinstance(right, float):
-                raise SemanticError()
-        else:
-            raise SemantcError()
+        if (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
+            raise SemanticError()
         return left - right
 
 class Multiply(Node):
@@ -282,13 +268,7 @@ class Multiply(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if isinstance(left, int):
-            if not isinstance(right, int):
-                raise SemanticError()
-        elif isinstance(left, float):
-            if not isinstance(right, float):
-                raise SemanticError()
-        else:
+        if (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
             raise SemanticError()
         return left * right
 
@@ -302,11 +282,13 @@ class Divide(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if isinstance(left, int):
-            if not isinstance(right, int) or right is 0:
+        if (isinstance(left, int) or isinstance(left, float)):
+            raise SemanticError()
+        if isinstance(right, int):
+            if right is 0:
                 raise SemanticError()
-        elif isinstance(left, float):
-            if not isinstance(right, float) or right is 0.0:
+        elif isinstance(right, float):
+            if right is 0.0:
                 raise SemanticError()
         else:
             raise SemanticError()
@@ -322,11 +304,13 @@ class FloorDivide(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if isinstance(left, int):
-            if not isinstance(right, int) or right is 0:
+        if (isinstance(left, int) or isinstance(left, float)):
+            raise SemanticError()
+        if isinstance(right, int):
+            if right is 0:
                 raise SemanticError()
-        elif isinstance(left, float):
-            if not isinstance(right, float) or right is 0.0:
+        elif isinstance(right, float):
+            if right is 0.0:
                 raise SemanticError()
         else:
             raise SemanticError()
@@ -342,9 +326,7 @@ class Power(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if not isinstance(left, int) or not isinstance(left, float):
-            raise SemanticError()
-        if not isinstance(right, int) or not isinstance(right, float):
+        if (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
             raise SemanticError()
         return left ** right
     
@@ -383,8 +365,7 @@ class Parser(tpg.Parser):
     CompareFact/a -> CompareLiteral/a
     | "\(" Compare/a "\)";
 
-    CompareLiteral/a -> Boolean/a
-    | string/a;
+    CompareLiteral/a -> Boolean/a;
 
     Boolean/a -> BooleanAnd/a;
     
@@ -416,7 +397,8 @@ class Parser(tpg.Parser):
     | "\(" Number/a "\)"; 
 
     NumLiteral/a -> int/a
-    | real/a;
+    | real/a
+    | string/a;
     """
 
 # Make an instance of the parser. This acts like a function.
