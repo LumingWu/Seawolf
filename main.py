@@ -395,7 +395,14 @@ class Parser(tpg.Parser):
     
     START/a -> Expression/a;
 
-    Expression/a -> variable/a "=" Index/b $ a = Assign(a, b) $
+    Expression/a ->
+
+    IfWhile/a ->
+
+    Statement/a -> "{"/a (Line/b $ a = BlockAppend(a, b)$)* "}"
+    | Line/a;
+
+    Line/a -> variable/a "=" Index/b $ a = Assign(a, b) $
     | Index/a;
 
     Index/a -> IndexLiteral/a ("\\[" Number/b "\\]" $ a = Index(a, b)$)*;
