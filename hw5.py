@@ -240,7 +240,7 @@ class Add(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if ((isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float))) or (isinstance(left, str) and isinstance(right, str)):
+        if not ((isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float))) and not (isinstance(left, str) and isinstance(right, str)):
             raise SemanticError()
         return left + right
 
@@ -254,7 +254,7 @@ class Subtract(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
+        if not (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
             raise SemanticError()
         return left - right
 
@@ -268,7 +268,7 @@ class Multiply(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
+        if not (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
             raise SemanticError()
         return left * right
 
@@ -282,7 +282,7 @@ class Divide(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if (isinstance(left, int) or isinstance(left, float)):
+        if not (isinstance(left, int) or isinstance(left, float)):
             raise SemanticError()
         if isinstance(right, int):
             if right is 0:
@@ -304,7 +304,7 @@ class FloorDivide(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if (isinstance(left, int) or isinstance(left, float)):
+        if not (isinstance(left, int) or isinstance(left, float)):
             raise SemanticError()
         if isinstance(right, int):
             if right is 0:
@@ -316,6 +316,28 @@ class FloorDivide(Node):
             raise SemanticError()
         return left // right
 
+class Modulo(Node):
+
+    def __init__(self ,left, right):
+        print("Operation modulo ", left.evaluate(), right.evaluate())
+        self.left = left
+        self.right = right
+
+    def evaluate(self):
+        left = self.left.evaluate()
+        right = self.right.evaluate()
+        if not (isinstance(left, int) or isinstance(left, float)):
+            raise SemanticError()
+        if isinstance(right, int):
+            if right is 0:
+                raise SemanticError()
+        elif isinstance(right, float):
+            if right is 0.0:
+                raise SemanticError()
+        else:
+            raise SemanticError()
+        return left % right
+
 class Power(Node):
 
     def __init__(self, left, right):
@@ -326,7 +348,7 @@ class Power(Node):
     def evaluate(self):
         left = self.left.evaluate()
         right = self.right.evaluate()
-        if (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
+        if not (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
             raise SemanticError()
         return left ** right
     
@@ -389,15 +411,16 @@ class Parser(tpg.Parser):
     
     Muldiv/a -> Pow/a("\*" Pow/b $ a = Multiply(a, b)$
     | "/" Pow/b $ a = Divide(a, b) $
-    | "//" Pow/b $ a = FloorDivide(a, b)$)*;
+    | "//" Pow/b $ a = FloorDivide(a, b)$
+    | "%" Pow/b $ a = Modulo(a, b)$)*;
 
     Pow/a -> NumberFact/a ("\*\*" NumberFact/b $ a = Power(a, b)$)*;
     
     NumberFact/a -> NumLiteral/a
     | "\(" Number/a "\)"; 
 
-    NumLiteral/a -> int/a
-    | real/a
+    NumLiteral/a -> real/a
+    | int/a
     | string/a;
     """
 
