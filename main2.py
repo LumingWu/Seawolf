@@ -6,10 +6,15 @@ class Variables():
         self.variables = {}
         
     def put(self, key, value):
+        print("Putting: ", key, " ", value)
         self.variables[key] = value
         
     def get(self, key):
+        print("Getting: ", key)
         return self.variables[key]
+
+# Try to initialize varible map
+variables = Variables()
 
 class SemanticError(Exception):
     """
@@ -103,7 +108,7 @@ class Block(Node):
 class BlockAppend(Node):
 
     def __init__(self, left, right):
-        print("Block append: ", left.block, right)
+        print("Block append: ", left, right)
         self.left = left
         self.right = right
 
@@ -111,7 +116,6 @@ class BlockAppend(Node):
         left = self.left.block
         right = self.right
         left.append(right)
-        return left
         
 
 class Assign(Node):
@@ -417,7 +421,9 @@ class Parser(tpg.Parser):
     token variable "[A-Za-z][A-Za-z0-9_]*" VariableLiteral;
     separator space "\s+";
     
-    START/a -> Expression/a;
+    START/a -> Block/a;
+
+    Block/a -> "{"/a$a=Block()$ ((Block/b|Expression/b)$BlockAppend(a, b)$)*  "}";
     
     Expression/a -> (variable/a "=" Index/b $ a = Assign(a, b) $
     | Index/a) ";";
@@ -492,32 +498,34 @@ try:
 except(IndexError, IOError):
     f = open("input1.txt", "r")
 
-# Try to initialize varible map
-variables = Variables()
-
-# For each line in f
+# For each line in f, store into a list
+lines = []
 for l in f:
-    try:
-        # Try to parse the expression.
-        node = parse(l)
-
-        # Try to get a result.
-        result = node.evaluate()
-
-        # Print the representation of the result.
-        print(repr(result))
-
-    # If an exception is thrown, print the appropriate error.
-    except tpg.Error:
-        print("SYNTAX ERROR")
-        # Uncomment the next line to re-raise the syntax error,
-        # displaying where it occurs. Comment it for submission.
-        # raise
-        
-    except SemanticError:
-        print("SEMANTIC ERROR")
-        # Uncomment the next line to re-raise the semantic error,
-        # displaying where it occurs. Comment it for submission.
-        # raise
-
+    lines.append(l)
 f.close()
+lines = "".join(lines)
+print("Input Start")
+print(lines)
+print("Input End")
+try:
+    # Try to parse the expression.
+    node = parse(lines)
+
+    # Try to get a result.
+    result = node.evaluate()
+
+    # Print the representation of the result.
+    print(repr(result))
+
+# If an exception is thrown, print the appropriate error.
+except tpg.Error:
+    print("SYNTAX ERROR")
+    # Uncomment the next line to re-raise the syntax error,
+    # displaying where it occurs. Comment it for submission.
+    # raise
+        
+except SemanticError:
+    print("SEMANTIC ERROR")
+    # Uncomment the next line to re-raise the semantic error,
+    # displaying where it occurs. Comment it for submission.
+    # raise
