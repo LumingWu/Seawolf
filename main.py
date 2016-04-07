@@ -90,6 +90,30 @@ class VariableLiteral(Node):
     def evaluate(self):
         return variables.get(self.value)
 
+class Block(Node):
+
+    def __init__(self):
+        print("Block construction: ")
+        self.block = []
+
+    def evaluate(self):
+        for l in self.block:
+            l.evaluate()
+
+class BlockAppend(Node):
+
+    def __init__(self, left, right):
+        print("Block append: ", left.block)
+        self.left = left
+        self.right = right
+
+    def evaluate(self):
+        left = self.left.block
+        right = self.right
+        left.append(right)
+        return left
+        
+
 class Assign(Node):
 
     def __init__(self, left, right):
@@ -395,11 +419,11 @@ class Parser(tpg.Parser):
     
     START/a -> Expression/a;
 
-    Expression/a ->
+    Expression/a -> HighLevelStructure/a;
 
-    IfWhile/a ->
+    HighLevelStructure/a -> Statement/a;
 
-    Statement/a -> "{"/a (Line/b $ a = BlockAppend(a, b)$)* "}"
+    Statement/a -> "{"/a $a=Block()$("\\n" Line/b $a=BlockAppend(a, b)$)* "\\n}"
     | Line/a;
 
     Line/a -> variable/a "=" Index/b $ a = Assign(a, b) $
