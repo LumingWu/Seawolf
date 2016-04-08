@@ -6,9 +6,11 @@ class Variables():
         self.variables = {}
         
     def put(self, key, value):
+        print("Putting: ", key, " ", value)
         self.variables[key] = value
         
     def get(self, key):
+        print("Getting: ", key)
         return self.variables[key]
 
 class SemanticError(Exception):
@@ -88,6 +90,7 @@ class VariableLiteral(Node):
         self.value = value
 
     def evaluate(self):
+        print("Variable evaluation: ", variables.get(self.value))
         return variables.get(self.value)
 
 class Block(Node):
@@ -97,27 +100,23 @@ class Block(Node):
         self.block = []
 
     def evaluate(self):
+        print("Block evaluation: ")
         for l in self.block:
             l.evaluate()
+
+    def append(self, node):
+        self.block.append(node)
 
 class BlockAppend(Node):
 
     def __init__(self, left, right):
-        print("Block append: ", left.block, right)
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.block
-        right = self.right
+        print("Block append: ")
         left.append(right)
-        return left
         
-
 class Assign(Node):
 
     def __init__(self, left, right):
-        print("Assign: ", left.value, right.evaluate())
+        print("Assign construction: ", left.value, right.value)
         self.left = left
         self.right = right
 
@@ -417,9 +416,16 @@ class Parser(tpg.Parser):
     token variable "[A-Za-z][A-Za-z0-9_]*" VariableLiteral;
     separator space "\s+";
     
-    START/a -> Expression/a;
+    START/a -> Block/a;
+
+    Block/a -> "{"/a$a=Block()$ ((Block/b|Expression/b)$BlockAppend(a, b)$)*  "}";
+
+    Expression/a -> Function/a;
     
-    Expression/a -> (variable/a "=" Index/b $ a = Assign(a, b) $
+    Function/a -> "print("/a$a = PrintLiteral()$ Variable/b$a.add(b)$ ");"
+    | Variable/a;
+    
+    Variable/a -> (variable/a "=" Index/b $ a = Assign(a, b) $
     | Index/a) ";";
 
     Index/a -> IndexLiteral/a ("\\[" Number/b "\\]" $ a = Index(a, b)$)*;
@@ -492,32 +498,31 @@ try:
 except(IndexError, IOError):
     f = open("input1.txt", "r")
 
+# Read the whole program into one line string.
+line = f.read()
+f.close()
+
 # Try to initialize varible map
 variables = Variables()
+try:
+    # Try to parse the expression.
+    node = parse(line)
 
-# For each line in f
-for l in f:
-    try:
-        # Try to parse the expression.
-        node = parse(l)
+    # Try to get a result.
+    result = node.evaluate()
 
-        # Try to get a result.
-        result = node.evaluate()
+    # Print the representation of the result.
+    #print(repr(result))
 
-        # Print the representation of the result.
-        print(repr(result))
-
-    # If an exception is thrown, print the appropriate error.
-    except tpg.Error:
-        print("SYNTAX ERROR")
-        # Uncomment the next line to re-raise the syntax error,
-        # displaying where it occurs. Comment it for submission.
-        # raise
+# If an exception is thrown, print the appropriate error.
+except tpg.Error:
+    print("SYNTAX ERROR")
+    # Uncomment the next line to re-raise the syntax error,
+    # displaying where it occurs. Comment it for submission.
+    # raise
         
-    except SemanticError:
-        print("SEMANTIC ERROR")
-        # Uncomment the next line to re-raise the semantic error,
-        # displaying where it occurs. Comment it for submission.
-        # raise
-
-f.close()
+except SemanticError:
+    print("SEMANTIC ERROR")
+    # Uncomment the next line to re-raise the semantic error,
+    # displaying where it occurs. Comment it for submission.
+    # raise
