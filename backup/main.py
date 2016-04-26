@@ -40,6 +40,31 @@ class IntLiteral(Node):
     def evaluate(self):
         return self.value
 
+class RealLiteral(Node):
+
+    def __init__(self, value):
+        print("Real construction: ", value)
+        self.value = float(value)
+
+    def evaluate(self):
+        return self.value
+
+class BooleanLiteral(Node):
+
+    def __init__(self, value):
+        print("Boolean construction: ", value)
+        if value[0] == "t":
+            self.value = 1
+        elif value[0] == "f":
+            self.value = 0
+        elif int(value):
+            self.value = 1
+        else:
+            self.value = 0
+
+    def evaluate(self):
+        return self.value
+
 class StringLiteral(Node):
 
     def __init__(self, value):
@@ -57,14 +82,14 @@ class ListLiteral(Node):
         self.value = []
 
     def append(self, value):
+        print("List append: ", self.value, value.value)
         self.value.append(value)
 
     def evaluate(self):
-        print("List evaluation: ")
+        print("List evaluate: ")
         l = []
         for i in self.value:
             l.append(i.evaluate())
-        print(l)
         return l
 
 class VariableLiteral(Node):
@@ -74,15 +99,17 @@ class VariableLiteral(Node):
         self.value = value
 
     def evaluate(self):
-        print("Variable evaluation: ", variables.get(self.value))
+        print("Variable evaluation: ", self.value)
         return variables.get(self.value)
 
 class Block(Node):
 
     def __init__(self):
+        print("Block construction: ")
         self.block = []
 
     def evaluate(self):
+        print("Block evaluation: ")
         for l in self.block:
             l.evaluate()
 
@@ -92,6 +119,7 @@ class Block(Node):
 class IF(Node):
 
     def __init__(self, condition, block1, block2):
+        print("If construction:")
         self.condition = condition
         self.block1 = block1
         self.block2 = block2
@@ -105,6 +133,7 @@ class IF(Node):
 class WHILE(Node):
 
     def __init__(self, condition, block):
+        print("While construction")
         self.condition = condition
         self.block = block
 
@@ -396,13 +425,29 @@ class Modulo(Node):
         else:
             raise SemanticError()
         return left % right
+
+class Power(Node):
+
+    def __init__(self, left, right):
+        print("Operation power ", type(left), type(right))
+        self.left = left
+        self.right = right
+
+    def evaluate(self):
+        left = self.left.evaluate()
+        right = self.right.evaluate()
+        if not (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
+            raise SemanticError()
+        return left ** right
     
 # This is the TPG Parser that is responsible for turning our language into
 # an abstract syntax tree.
 class Parser(tpg.Parser):
     """
+    token real "\d*\.\d+|\d+\.\d*" RealLiteral;
     token int "\d+" IntLiteral;
-    token string '\".*?\"' StringLiteral;
+    token boolean "true|false" BooleanLiteral;
+    token string "\\"[^\\"]*\\"" StringLiteral;
     token variable "[A-Za-z][A-Za-z0-9_]*" VariableLiteral;
     separator space "\s+";
     
@@ -415,24 +460,47 @@ class Parser(tpg.Parser):
 
     Expression/a -> NoReturn/a ";";
 
-    Return/a -> Equals/a;
-    
-    Equals/a -> Arrows/a ("==" Arrows/b $ a = Equal(a, b)$;
+    Return/a -> Compare/a;
 
-    Arrows/a -> "<" Addsub/b $ a = Less(a, b)$;
+    Compare/a -> BooleanOr/a;
+
+    BooleanOr/a -> BooleanAnd/a (("or"|"\|\|") BooleanAnd/b $ a = Or(a, b)$)*;
+    
+    BooleanAnd/a -> Equals/a (("and"|"\&\&") Equals/b $ a = And(a, b)$)*;
+    
+    Equals/a -> Arrows/a ("==" Arrows/b $ a = Equal(a, b)$
+    | "!=" Arrows/b $ a = NotEqual(a, b)$)*;
+
+    Arrows/a -> Not/a ("<=" Not/b $ a = LessEqual(a, b)$
+    | "<" Not/b $ a = Less(a, b)$
+    |">=" Not/b $ a = LargerEqual(a, b)$
+    | ">" Not/b $ a = Larger(a, b)$)*;
+    
+    Not/a -> BooleanLiteral/a
+    | "NOT" BooleanLiteral/a $ a = Not(a)$;
+
+    BooleanLiteral/a -> boolean/a
+    | Number/a;
+    
+    Number/a -> Addsub/a;
 
     Addsub/a -> Muldiv/a("\+" Muldiv/b $ a = Add(a, b)$
     | "-" Muldiv/b $ a = Subtract(a, b)$)*;
     
-    Muldiv/a -> Index/a("\*" Pow/b $ a = Multiply(a, b)$
-    | "%" Index/b $ a = Modulo(a, b)$)*;
+    Muldiv/a -> Pow/a("\*" Pow/b $ a = Multiply(a, b)$
+    | "/" Pow/b $ a = Divide(a, b) $
+    | "//" Pow/b $ a = FloorDivide(a, b)$
+    | "%" Pow/b $ a = Modulo(a, b)$)*;
+
+    Pow/a -> Index/a ("\*\*" NumberFact/b $ a = Power(a, b)$)*;
     
     Index/a -> Fact/a ("\\[" Number/b "\\]" $ a = Index(a, b)$)*;
     
     Fact/a -> Literal/a
     | "\(" Return/a "\)";
 
-    Literal/a -> int/a
+    Literal/a -> real/a
+    | int/a
     | string/a
     | variable/a
     | List/a;
