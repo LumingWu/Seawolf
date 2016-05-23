@@ -1,25 +1,11 @@
 import sys
 import tpg
 
-class Variables():
-    def __init__(self):
-        self.variables = {}
-        
-    def put(self, key, value):
-        print("Putting: ", key, " ", value)
-        self.variables[key] = value
-        
-    def get(self, key):
-        print("Getting: ", key, " ", self.variables[key])
-        return self.variables[key]
-
 class SemanticError(Exception):
     """
     This is the class of the exception that is raised when a semantic error
     occurs.
     """
-    
-# These are the nodes of our abstract syntax tree.
 class Node(object):
     """
     A base class for nodes. Might come in handy in the future.
@@ -31,455 +17,238 @@ class Node(object):
         """
         raise Exception("Not implemented.")
 
+stack = [{}]
+functionMap = {}
+
 class IntLiteral(Node):
 
     def __init__(self, value):
-        print("Integer construction: ", value)
         self.value = int(value)
 
     def evaluate(self):
         return self.value
 
-class StringLiteral(Node):
+class Variable(Node):
 
     def __init__(self, value):
-        print("String construction: ", value)
-        temp = str(value)
-        self.value = temp[1:len(temp)-1]
-
-    def evaluate(self):
-        return self.value
-
-class ListLiteral(Node):
-
-    def __init__(self):
-        print("List construction: []")
-        self.value = []
-
-    def append(self, value):
-        self.value.append(value)
-
-    def evaluate(self):
-        print("List evaluation: ")
-        l = []
-        for i in self.value:
-            l.append(i.evaluate())
-        print(l)
-        return l
-
-class VariableLiteral(Node):
-
-    def __init__(self, value):
-        print("Variable construction: ", value)
         self.value = value
 
     def evaluate(self):
-        print("Variable evaluation: ", variables.get(self.value))
-        return variables.get(self.value)
+        if self.value in stack[len(stack) - 1].keys():
+            value = stack[len(stack) - 1][self.value]
+        else:
+            value = stack[0][self.value]
+        return value
+    
+class Assign(Node):
+
+    def __init__(self, left, right):
+        self.left = left
+        self.right = right
+
+    def evaluate(self):
+        stack[len(stack) - 1][self.left.value] = self.right.evaluate()
+
+class Print(Node):
+
+    def __init__(self, value):
+        self.value = value
+
+    def evaluate(self):
+        print(self.value.evaluate())
+
+class Operation(Node):
+
+    def __init__(self, operate, left, right):
+        self.operate = operate
+        self.left = left
+        self.right = right
+
+    def evaluate(self):
+        left = self.left.evaluate()
+        right = self.right.evaluate()
+        return {
+            '*': left * right,
+            '+': left + right,
+            '-': left - right,
+            '%': left % right
+        }[self.operate]
+
+class Compare(Node):
+
+    def __init__(self, operate, left, right):
+        self.operate = operate
+        self.left = left
+        self.right = right
+
+    def evaluate(self):
+        left = self.left.evaluate()
+        right = self.right.evaluate()
+        boolean = {
+            '<':left < right,
+            '==':left == right
+        }[self.operate]
+        if boolean:
+            return 1
+        else:
+            return 0
+    
+# Above: Done
+# Below: Work
 
 class Block(Node):
 
     def __init__(self):
-        self.block = []
+        self.statements = []
 
     def evaluate(self):
-        for l in self.block:
-            l.evaluate()
+        for l in self.statements:
+            result = l.evaluate()
+            if isinstance(l, Block) or isinstance(l, If) or isinstance(l, Else):
+                if result is not None:
+                    return result
+            if isinstance(l, Return):
+                return result
 
-    def append(self, node):
-        self.block.append(node)
+class Return(Node):
 
-class IF(Node):
-
-    def __init__(self, condition, block1, block2):
-        self.condition = condition
-        self.block1 = block1
-        self.block2 = block2
-        
-    def evaluate(self):
-        if(self.condition.evaluate()):
-            self.block1.evaluate()
-        else:
-            self.block2.evaluate()
-
-class WHILE(Node):
-
-    def __init__(self, condition, block):
-        self.condition = condition
-        self.block = block
-
-    def evaluate(self):
-        while self.condition.evaluate():
-            self.block.evaluate()
-
-class Print(Node):
-
-    def __init__(self):
-        print("Print construction: ")
-
-    def line(self, value):
-        print("Print line: ", type(value))
+    def __init__(self, value):
         self.value = value
-        
+
     def evaluate(self):
-        print("Console print: ", self.value.evaluate())
-        
-class Assign(Node):
+        return self.value.evaluate()
+
+class If(Node):
 
     def __init__(self, left, right):
-        print("Assign construction: ", type(left), type(right))
         self.left = left
         self.right = right
 
     def evaluate(self):
-        if isinstance(self.left, VariableLiteral):
-            variables.put(self.left.value, self.right.evaluate())
+        result = None
+        if self.left.evaluate():
+            self.right.evaluate()
+        if result is not None:
+            return result
+
+class Else(Node):
+
+    def __init__(self, left, right1, right2):
+        self.left = left
+        self.right1 = right1
+        self.right2 = right2
+
+    def evaluate(self):
+        result = None
+        if self.left.evaluate():
+            result = self.right1.evaluate()
         else:
-            self.left.setValue(self.right.evaluate())
-        
+            result = self.right2.evaluate()
+        if result is not None:
+            return result
 
-class Index(Node):
+class ProcDef(Node):
 
-    def __init__(self, left, right):
-        print("Operation index ", type(left), type(right))
+    def __init__(self, left, param, right):
         self.left = left
+        self.param = param
         self.right = right
 
     def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not ((isinstance(left, str) or isinstance(left, list)) and isinstance(right, int)):
-            raise SemanticError
-        return left[right]
+        for i in range(0, len(self.param)):
+            self.param[i] = self.param[i].value
+        functionMap[self.left.value] = [self.param, self.right]
 
-    def setValue(self, value):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not ((isinstance(left, str) or isinstance(left, list)) and isinstance(right, int)):
-            raise SemanticError
-        left[right] = value
+class ProcedureCall(Node):
 
-class Equal(Node):
-
-    def __init__(self, left, right):
-        print("Operation == ", type(left), type(right))
+    def __init__(self, left, param):
         self.left = left
-        self.right = right
+        self.param = param
 
     def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if left == right:
-            return 1
-        return 0
+        newMap = {}
+        for i in range(0, len(self.param)):
+            newMap[functionMap[self.left.value][0][i]] = self.param[i].evaluate()
+        stack.append(newMap)
+        result = functionMap[self.left.value][1].evaluate()
+        stack.pop()
+        if result is not None:
+            return result
+            
 
-class NotEqual(Node):
-
-    def __init__(self, left, right):
-        print("Operation != ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if left != right:
-            return 1
-        return 0
-
-class Less(Node):
-
-    def __init__(self, left, right):
-        print("Operation < ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if left < right:
-            return 1
-        return 0
-    
-class LessEqual(Node):
-
-    def __init__(self, left, right):
-        print("Operation <= ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if left <= right:
-            return 1
-        return 0
-    
-class Larger(Node):
-
-    def __init__(self, left, right):
-        print("Operation > ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if left > right:
-            return 1
-        return 0
-    
-class LargerEqual(Node):
-
-    def __init__(self, left, right):
-        print("Operation >= ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if left >= right:
-            return 1
-        return 0
-
-class And(Node):
-    
-    def __init__(self, left, right):
-        print("Operation and ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not (isinstance(left, int) and isinstance(right, int)):
-            raise SemanticError()
-        if left and right:
-            return 1
-        return 0
-
-class Or(Node):
-
-    def __init__(self, left, right):
-        print("Operation or ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not (isinstance(left, int) and isinstance(right, int)):
-            raise SemanticError()
-        if left or right:
-            return 1
-        return 0
-
-class Not(Node):
-
-    def __init__(self, left):
-        print("Operation not ", type(left))
-        self.left = left
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        if not isinstance(left, int):
-            raise SemanticError()
-        if left:
-            return 0
-        return 1
-
-class Add(Node):
-
-    def __init__(self, left, right):
-        print("Operation add: ", type(left), " + ", type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not ((isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float))) and not (isinstance(left, str) and isinstance(right, str)):
-            raise SemanticError()
-        return left + right
-
-class Subtract(Node):
-
-    def __init__(self, left, right):
-        print("Operation subtract ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
-            raise SemanticError()
-        return left - right
-
-class Multiply(Node):
-
-    def __init__(self, left, right):
-        print("Operation multiply ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not (isinstance(left, int) or isinstance(left, float)) and (isinstance(right, int) or isinstance(right, float)):
-            raise SemanticError()
-        return left * right
-
-class Divide(Node):
-
-    def __init__(self, left, right):
-        print("Operation divide ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not (isinstance(left, int) or isinstance(left, float)):
-            raise SemanticError()
-        if isinstance(right, int):
-            if right is 0:
-                raise SemanticError()
-        elif isinstance(right, float):
-            if right is 0.0:
-                raise SemanticError()
-        else:
-            raise SemanticError()
-        return left / right
-
-class FloorDivide(Node):
-    
-    def __init__(self ,left, right):
-        print("Operation floor divide ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not (isinstance(left, int) or isinstance(left, float)):
-            raise SemanticError()
-        if isinstance(right, int):
-            if right is 0:
-                raise SemanticError()
-        elif isinstance(right, float):
-            if right is 0.0:
-                raise SemanticError()
-        else:
-            raise SemanticError()
-        return left // right
-
-class Modulo(Node):
-
-    def __init__(self ,left, right):
-        print("Operation modulo ", type(left), type(right))
-        self.left = left
-        self.right = right
-
-    def evaluate(self):
-        left = self.left.evaluate()
-        right = self.right.evaluate()
-        if not (isinstance(left, int) or isinstance(left, float)):
-            raise SemanticError()
-        if isinstance(right, int):
-            if right is 0:
-                raise SemanticError()
-        elif isinstance(right, float):
-            if right is 0.0:
-                raise SemanticError()
-        else:
-            raise SemanticError()
-        return left % right
-    
-# This is the TPG Parser that is responsible for turning our language into
-# an abstract syntax tree.
 class Parser(tpg.Parser):
     """
     token int "\d+" IntLiteral;
-    token string '\".*?\"' StringLiteral;
-    token variable "[A-Za-z][A-Za-z0-9_]*" VariableLiteral;
+    token variable '[A-Za-z][A-Za-z0-9]*' Variable;
     separator space "\s+";
+ 
+    START/a -> $ a = Block() $ ( statement/b $ a.statements.append(b) $)* ;
+   
+    statement/a -> ( _func_def/a | block/a | code/a );
+   
+    block/a -> "\{" $ a = Block() $ ( statement/b $ a.statements.append(b) $ )* "\}";
+   
+    code/a -> ( _if_else/a | _if/a | lines/a );
+    lines/a -> ( _assign/a | _print/a | _return/a | _function/a ) ";" ;
+   
+    _func_def/a -> variable/v params/n block/b    $ a = ProcDef(v, n, b) $ ;
+    _if_else/a -> "if" "\(" expression/e "\)" statement/d "else" statement/s   $ a = Else(e,d,s) $;
+    _if/a -> "if" "\(" expression/e "\)" statement/s       $ a = If(e, s) $;
+    _assign/a -> expression/a "=(?!=)" expression/b        $ a = Assign(a, b) $ ;
+    _print/a -> "print" expression/a                       $ a = Print(a) $ ;
+    _return/a -> "return " expression/a                    $ a = Return(a) $ ;
+    _function/a -> variable/v param_list/l                 $ a = ProcedureCall(v, l) $ ;
+   
+    expression/a -> compare/a;
+ 
+    compare/a -> mod/a
+    ( "<" mod/b $ a = Compare("<", a, b) $
+    | "==" mod/b $ a = Compare("==", a, b) $
+    )* ;
     
-    START/a -> Block/a;
-
-    HighLevelStructure/a -> "if" Return/b (Block/c "else" Block/d $a=IF(b, c, d)$ | Block/c$a=IF(b, c, Block())$)
-    | "while" Return/b Block/c $a=WHILE(b, c)$;
-
-    Block/a -> "{"/a$a=Block()$ ((HighLevelStructure/b|Block/b|Expression/b)$a.append(b)$)*  "}";
-
-    Expression/a -> NoReturn/a ";";
-
-    Return/a -> Equals/a;
-    
-    Equals/a -> Arrows/a ("==" Arrows/b $ a = Equal(a, b)$;
-
-    Arrows/a -> "<" Addsub/b $ a = Less(a, b)$;
-
-    Addsub/a -> Muldiv/a("\+" Muldiv/b $ a = Add(a, b)$
-    | "-" Muldiv/b $ a = Subtract(a, b)$)*;
-    
-    Muldiv/a -> Index/a("\*" Pow/b $ a = Multiply(a, b)$
-    | "%" Index/b $ a = Modulo(a, b)$)*;
-    
-    Index/a -> Fact/a ("\\[" Number/b "\\]" $ a = Index(a, b)$)*;
-    
-    Fact/a -> Literal/a
-    | "\(" Return/a "\)";
-
-    Literal/a -> int/a
-    | string/a
-    | variable/a
-    | List/a;
-    
-    List/a -> "\\[" $a=ListLiteral()$ Return/b $a.append(b)$("," Return/b $a.append(b)$)* "\\]"
-    | "\\[\\]"/a $a=ListLiteral()$;
-    
-    NoReturn/a -> "print" $a=Print()$ Return/b $a.line(b)$ 
-    | Return/b "=" Return/c $a=Assign(b, c)$;
+    mod/a -> addsub/a ( "\%" addsub/b $ a = Operation("%", a, b) $)*;
+ 
+    addsub/a -> muldiv/a
+    ( "\+" muldiv/b $ a = Operation("+", a, b) $
+    | "\-"  muldiv/b $ a = Operation("-", a, b) $
+    )* ;
+ 
+    muldiv/a -> parens/a
+    ( "\*" parens/b $ a = Operation("*", a, b) $
+    )* ;
+   
+    parens/a -> _function/a | "\(" expression/a "\)" | literal/a | variable/a;
+ 
+    literal/a -> int/a;
+     
+    params/a -> "\(" $ a = [] $ ( variable/v $ a.append(v) $ )?
+    ( "," variable/v $ a.append(v) $ )*
+    "\)"
+    ;
+   
+    param_list/a -> "\(" $ a = [] $ ( expression/e $ a.append(e) $ )?
+    ( "," expression/e $ a.append(e) $ )*
+    "\)"
+    ;
     """
 
-# Make an instance of the parser. This acts like a function.
 parse = Parser()
-# This is the driver code, that reads in lines, deals with errors, and
-# prints the output if no error occurs.
 
-# Open the file containing the input.
 try:
     f = open(sys.argv[1], "r")
 except(IndexError, IOError):
     f = open("input1.txt", "r")
-
-# Read the whole program into one line string.
+    
 line = f.read()
 f.close()
 
-# Try to initialize varible map
-variables = Variables()
 try:
-    # Try to parse the expression.
     node = parse(line)
 
-    # Try to get a result.
     result = node.evaluate()
 
-    # Print the representation of the result.
-    #print(repr(result))
-
-# If an exception is thrown, print the appropriate error.
 except tpg.Error:
     print("SYNTAX ERROR")
-    # Uncomment the next line to re-raise the syntax error,
-    # displaying where it occurs. Comment it for submission.
-    # raise
         
 except SemanticError:
     print("SEMANTIC ERROR")
-    # Uncomment the next line to re-raise the semantic error,
-    # displaying where it occurs. Comment it for submission.
-    # raise
